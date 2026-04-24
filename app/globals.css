@@ -2,55 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Linear/Vercel-style dark premium aesthetic — single dark palette, no light toggle */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 160 84% 39%;
+    /* Surfaces */
+    --background: 0 0% 3.5%;          /* #0a0a0a */
+    --surface:    0 0% 6.7%;          /* #111111 */
+    --surface-2:  0 0% 9%;            /* #171717 */
+    --border:     0 0% 10.2%;         /* #1a1a1a */
+    --border-strong: 0 0% 14%;        /* #242424 */
+
+    /* Text */
+    --foreground:        0 0% 96%;
+    --muted-foreground:  0 0% 60%;
+    --muted:             0 0% 12%;
+
+    /* WhatsApp green — primary accent */
+    --primary:            142 70% 49%;   /* #25d366 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 160 84% 39%;
+    --primary-glow:       142 70% 49%;
+
+    /* Shadcn-compatible tokens */
+    --card:               var(--surface);
+    --card-foreground:    var(--foreground);
+    --popover:            var(--surface);
+    --popover-foreground: var(--foreground);
+    --secondary:          var(--surface-2);
+    --secondary-foreground: 0 0% 92%;
+    --accent:             var(--surface-2);
+    --accent-foreground:  0 0% 92%;
+    --destructive:        0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --input:              var(--border);
+    --ring:               142 70% 49%;
+
     --radius: 0.75rem;
   }
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 160 84% 39%;
+  * { @apply border-border; }
+
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-tap-highlight-color: transparent;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, hsl(var(--primary) / 0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 100%, hsl(var(--primary) / 0.04), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  /* Tabular numbers (times, prices) — Linear-style */
+  .tabular { font-variant-numeric: tabular-nums; }
 }
 
-@layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
+@layer components {
+  /* Subtle elevated surface used for cards on top of page background */
+  .surface { @apply bg-[hsl(var(--surface))] border border-[hsl(var(--border))]; }
+  .surface-2 { @apply bg-[hsl(var(--surface-2))] border border-[hsl(var(--border))]; }
+
+  /* Status dots */
+  .dot { @apply inline-block h-1.5 w-1.5 rounded-full; }
+
+  /* Initial avatar */
+  .avatar-ini {
+    @apply inline-flex items-center justify-center rounded-full text-sm font-semibold
+           bg-gradient-to-br from-[hsl(var(--surface-2))] to-[hsl(var(--surface))]
+           border border-[hsl(var(--border-strong))] text-foreground;
+  }
+
+  /* Glow utility for the accent */
+  .glow-primary { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 24px -4px hsl(var(--primary) / 0.5); }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
 }

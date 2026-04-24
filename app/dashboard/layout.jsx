@@ -7,9 +7,9 @@ export default async function DashboardLayout({ children }) {
   if (!session?.negocio_id) redirect('/login')
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-muted/30">
+    <div className="min-h-screen">
       <DashboardNav nombre={session.nombre} />
-      <main className="flex-1 pb-20 md:pb-6 md:pl-64">{children}</main>
+      <main className="pb-24 md:pb-6 md:pl-60">{children}</main>
     </div>
   )
 }

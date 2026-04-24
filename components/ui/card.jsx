@@ -2,7 +2,15 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const Card = React.forwardRef(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn('rounded-xl border bg-card text-card-foreground shadow', className)} {...props} />
+  <div
+    ref={ref}
+    className={cn(
+      'rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-card-foreground',
+      'transition-colors duration-150',
+      className
+    )}
+    {...props}
+  />
 ))
 Card.displayName = 'Card'
 
