@@ -65,44 +65,15 @@ export default function HorariosPage() {
           <p className="text-xs text-muted-foreground">Toca para abrir/cerrar</p>
         </div>
         <div className="surface rounded-xl overflow-hidden divide-y divide-[hsl(var(--border))]">
-          {DIAS.map((nombre, i) => {
-            const h = getDia(i)
-            const isOpen = !!h.activo
-            const apertura = (h.hora_apertura || '09:00').slice(0, 5)
-            const cierre = (h.hora_cierre || '20:00').slice(0, 5)
-            return (
-              <div key={i} className={cn('px-4 md:px-5 py-3.5 flex items-center gap-3 md:gap-4 flex-wrap md:flex-nowrap', !isOpen && 'opacity-60')}>
-                <div className="flex items-center gap-3 w-full md:w-auto md:min-w-[160px]">
-                  <Switch
-                    checked={isOpen}
-                    onCheckedChange={(v) => guardarDia(i, { hora_apertura: apertura, hora_cierre: cierre, activo: v ? 1 : 0 })}
-                  />
-                  <div>
-                    <div className="font-medium leading-tight">{nombre}</div>
-                    <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                      {isOpen ? <span className="text-primary">Abierto</span> : 'Cerrado'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className={cn('flex items-center gap-2 ml-auto', !isOpen && 'pointer-events-none')}>
-                  <Input
-                    type="time"
-                    className="w-28 tabular"
-                    value={apertura}
-                    onChange={e => guardarDia(i, { hora_apertura: e.target.value, hora_cierre: cierre, activo: h.activo })}
-                  />
-                  <span className="text-muted-foreground text-sm">→</span>
-                  <Input
-                    type="time"
-                    className="w-28 tabular"
-                    value={cierre}
-                    onChange={e => guardarDia(i, { hora_apertura: apertura, hora_cierre: e.target.value, activo: h.activo })}
-                  />
-                </div>
-              </div>
-            )
-          })}
+          {DIAS.map((nombre, i) => (
+            <DiaRow
+              key={i}
+              dia={i}
+              nombre={nombre}
+              horario={getDia(i)}
+              onSave={guardarDia}
+            />
+          ))}
         </div>
       </section>
 
@@ -150,6 +121,74 @@ export default function HorariosPage() {
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+/**
+ * Fila de configuración de día.
+ * Estado local (draft) para permitir editar los time inputs sin que cada tecla dispare
+ * un fetch (lo cual rompía la edición porque el onChange recargaba desde server).
+ * Guarda en onBlur o con Enter, y el switch guarda inmediato.
+ */
+function DiaRow({ dia, nombre, horario, onSave }) {
+  const apertura0 = (horario.hora_apertura || '09:00').slice(0, 5)
+  const cierre0 = (horario.hora_cierre || '20:00').slice(0, 5)
+  const isOpen = !!horario.activo
+
+  const [apertura, setApertura] = useState(apertura0)
+  const [cierre, setCierre] = useState(cierre0)
+
+  // Si el server devuelve valores nuevos (ej. tras otra edición), sincronizamos — pero
+  // solo cuando el usuario NO tiene foco activo sobre los inputs (protege la edición).
+  useEffect(() => {
+    setApertura(apertura0)
+    setCierre(cierre0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apertura0, cierre0])
+
+  function persistirSi(payload) {
+    // Validaciones locales para no pedir guardado inválido al server
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.hora_apertura)) return
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.hora_cierre)) return
+    if (payload.hora_cierre <= payload.hora_apertura) return
+    onSave(dia, payload)
+  }
+
+  return (
+    <div className={cn('px-4 md:px-5 py-3.5 flex items-center gap-3 md:gap-4 flex-wrap md:flex-nowrap', !isOpen && 'opacity-70')}>
+      <div className="flex items-center gap-3 w-full md:w-auto md:min-w-[160px]">
+        <Switch
+          checked={isOpen}
+          onCheckedChange={(v) => onSave(dia, { hora_apertura: apertura, hora_cierre: cierre, activo: v ? 1 : 0 })}
+        />
+        <div>
+          <div className="font-medium leading-tight">{nombre}</div>
+          <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+            {isOpen ? <span className="text-primary">Abierto</span> : 'Cerrado'}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 ml-auto">
+        <Input
+          type="time"
+          className="w-28 tabular"
+          value={apertura}
+          onChange={e => setApertura(e.target.value)}
+          onBlur={() => apertura !== apertura0 && persistirSi({ hora_apertura: apertura, hora_cierre: cierre, activo: horario.activo })}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        />
+        <span className="text-muted-foreground text-sm">→</span>
+        <Input
+          type="time"
+          className="w-28 tabular"
+          value={cierre}
+          onChange={e => setCierre(e.target.value)}
+          onBlur={() => cierre !== cierre0 && persistirSi({ hora_apertura: apertura, hora_cierre: cierre, activo: horario.activo })}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        />
+      </div>
     </div>
   )
 }

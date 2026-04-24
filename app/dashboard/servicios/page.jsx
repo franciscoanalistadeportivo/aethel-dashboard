@@ -32,12 +32,20 @@ export default function ServiciosPage() {
   useEffect(() => { cargar() }, [])
 
   async function toggleActivo(s) {
-    await fetch(`/api/servicios/${s.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activo: !s.activo }),
-    })
-    cargar()
+    const nuevo = !s.activo
+    // Optimistic update — feedback inmediato en el switch
+    setItems(curr => curr.map(x => x.id === s.id ? { ...x, activo: nuevo ? 1 : 0 } : x))
+    try {
+      const res = await fetch(`/api/servicios/${s.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: nuevo }),
+      })
+      if (!res.ok) throw new Error('rollback')
+    } catch {
+      // Revertir si falla
+      setItems(curr => curr.map(x => x.id === s.id ? { ...x, activo: s.activo } : x))
+    }
   }
 
   const activos = items.filter(s => s.activo)
