@@ -16,16 +16,31 @@ export default function HorariosPage() {
   const [horarios, setHorarios] = useState([])
   const [bloqueos, setBloqueos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [toast, setToast] = useState('')
 
   async function cargar() {
     setLoading(true)
-    const [rH, rB] = await Promise.all([
-      fetch('/api/horarios', { cache: 'no-store' }).then(r => r.json()),
-      fetch('/api/bloqueos', { cache: 'no-store' }).then(r => r.json()),
-    ])
-    setHorarios(rH.horarios || [])
-    setBloqueos(rB.bloqueos || [])
-    setLoading(false)
+    try {
+      const [rH, rB] = await Promise.all([
+        fetch('/api/horarios', { cache: 'no-store' }).then(async r => {
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(d.error || `GET /api/horarios ${r.status}`)
+          return d
+        }),
+        fetch('/api/bloqueos', { cache: 'no-store' }).then(async r => {
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(d.error || `GET /api/bloqueos ${r.status}`)
+          return d
+        }),
+      ])
+      setHorarios(rH.horarios || [])
+      setBloqueos(rB.bloqueos || [])
+      setToast('')
+    } catch (e) {
+      setToast(`${e.message}. ¿Corriste \`npm run schema\`?`)
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { cargar() }, [])
 
@@ -34,19 +49,41 @@ export default function HorariosPage() {
            { dia_semana: dia, hora_apertura: '09:00', hora_cierre: '20:00', activo: 0 }
   }
 
+  // Optimistic update: pone el estado local al instante y después persiste.
+  // Si la API falla, revierte y muestra el error.
   async function guardarDia(dia, payload) {
-    await fetch('/api/horarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dia_semana: dia, ...payload }),
+    const prev = horarios
+    const updated = { dia_semana: dia, ...payload }
+    setHorarios(curr => {
+      const idx = curr.findIndex(h => h.dia_semana === dia)
+      if (idx === -1) return [...curr, updated]
+      const next = [...curr]; next[idx] = { ...next[idx], ...updated }
+      return next
     })
-    cargar()
+    try {
+      const res = await fetch('/api/horarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
+      setToast('')
+    } catch (e) {
+      setHorarios(prev) // rollback
+      setToast(`No se pudo guardar: ${e.message}`)
+    }
   }
 
   async function borrarBloqueo(id) {
     if (!confirm('¿Eliminar este bloqueo?')) return
-    await fetch(`/api/bloqueos?id=${id}`, { method: 'DELETE' })
-    cargar()
+    try {
+      const res = await fetch(`/api/bloqueos?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      cargar()
+    } catch (e) {
+      setToast(`No se pudo eliminar: ${e.message}`)
+    }
   }
 
   return (
@@ -55,6 +92,13 @@ export default function HorariosPage() {
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Configuración</p>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">Horarios</h1>
       </div>
+
+      {toast && (
+        <div className="surface rounded-lg px-4 py-3 border-red-500/30 bg-red-500/10 text-sm text-red-200 flex items-start gap-3">
+          <span className="flex-1">{toast}</span>
+          <button onClick={() => setToast('')} className="text-red-200 hover:text-red-100 text-xs" aria-label="Cerrar">✕</button>
+        </div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Cargando…</p>}
 

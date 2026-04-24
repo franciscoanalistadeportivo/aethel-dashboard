@@ -20,13 +20,20 @@ export default function ServiciosPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // null | 'new' | {...servicio}
+  const [toast, setToast] = useState('')       // errores/avisos globales
 
   async function cargar() {
     setLoading(true)
-    const r = await fetch('/api/servicios?todos=1', { cache: 'no-store' })
-    const d = await r.json()
-    setItems(d.servicios || [])
-    setLoading(false)
+    try {
+      const r = await fetch('/api/servicios?todos=1', { cache: 'no-store' })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || `Error ${r.status}`)
+      setItems(d.servicios || [])
+    } catch (e) {
+      setToast(`No se pudieron cargar los servicios: ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { cargar() }, [])
@@ -41,10 +48,13 @@ export default function ServiciosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ activo: nuevo }),
       })
-      if (!res.ok) throw new Error('rollback')
-    } catch {
-      // Revertir si falla
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
+      setToast('')
+    } catch (e) {
+      // Revertir si falla + surface error
       setItems(curr => curr.map(x => x.id === s.id ? { ...x, activo: s.activo } : x))
+      setToast(`No se pudo actualizar: ${e.message}. ¿Corriste \`npm run schema\`?`)
     }
   }
 
@@ -57,12 +67,19 @@ export default function ServiciosPage() {
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Configuración</p>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">Servicios</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {activos.length} activo{activos.length !== 1 ? 's' : ''}{inactivos.length > 0 && ` · ${inactivos.length} inactivo${inactivos.length > 1 ? 's' : ''}`}
+          <p className="text-sm text-muted-foreground mt-1" translate="no">
+            {`${activos.length} activo${activos.length !== 1 ? 's' : ''}${inactivos.length > 0 ? ` · ${inactivos.length} inactivo${inactivos.length > 1 ? 's' : ''}` : ''}`}
           </p>
         </div>
         <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" />Nuevo</Button>
       </div>
+
+      {toast && (
+        <div className="surface rounded-lg px-4 py-3 border-red-500/30 bg-red-500/10 text-sm text-red-200 flex items-start gap-3">
+          <span className="flex-1">{toast}</span>
+          <button onClick={() => setToast('')} className="text-red-200 hover:text-red-100 text-xs" aria-label="Cerrar">✕</button>
+        </div>
+      )}
 
       {loading && <p className="text-sm text-muted-foreground">Cargando…</p>}
       {!loading && items.length === 0 && (
@@ -159,8 +176,13 @@ function ServicioDialog({ open, servicio, onClose, onSaved }) {
         nombre: form.nombre,
         precio: Number(form.precio),
         duracion_min: Number(form.duracion_min),
-        descripcion: form.descripcion || null,
       }
+      // Solo enviar descripción cuando hay algo para enviar.
+      // Si la tabla no tiene la columna `descripcion`, este campo la haría fallar.
+      const desc = (form.descripcion || '').trim()
+      if (desc) body.descripcion = desc
+      else if (servicio && servicio.descripcion) body.descripcion = null // explicit borrado
+
       const url = servicio ? `/api/servicios/${servicio.id}` : '/api/servicios'
       const method = servicio ? 'PATCH' : 'POST'
       const res = await fetch(url, {
@@ -169,7 +191,7 @@ function ServicioDialog({ open, servicio, onClose, onSaved }) {
         body: JSON.stringify(body),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.error || 'Error')
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
       onSaved()
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
